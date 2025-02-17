@@ -9,6 +9,8 @@ triggers:
     id: Generic Barcode
 conditions: []
 actions:
+  - variables:
+      action_id: REPLY_{{ context.id }}
   - choose:
       - conditions:
           - condition: trigger
@@ -21,36 +23,88 @@ actions:
               barcode: "{{ trigger.event.data.barcode }}"
             response_variable: product
             enabled: true
-          - action: esphome.barcode_scanner_product_identified
-            metadata: {}
-            data:
-              product: >-
-                {% if product.result == 'success' %}{% if product.brand | length
-                >0     %}{{product.brand}} {% endif %}{{product.title}} {% else
-                %}Unknown{% endif %}
           - alias: If the barcode was found
             if:
               - condition: template
                 value_template: "{% if product.result == \"success\" %}true{% endif %}"
             then:
+              - action: esphome.barcode_scanner_kitchen_product_identified
+                metadata: {}
+                data:
+                  product: >-
+                    {% if product.result == 'success' %}{% if product.brand |
+                    length >0     %}{{product.brand}} {% endif
+                    %}{{product.title}} {% else %}Unknown{% endif %}
               - action: todo.add_item
                 metadata: {}
                 data:
                   item: >-
-                    {% if product.result == 'success' %}{% if product.quantity |
-                    length >0  %}{{product.quantity}} {% endif %}{% if
-                    product.brand | length >0 %}{{product.brand}} {% endif
-                    %}{{product.title}}{% endif %}
+                    {% if product.result == 'success' %}{% if product.brand |
+                    length >0 %}{{product.brand}} {% endif %}{{product.title}}{%
+                    if product.quantity | length >0  %} {{product.quantity}}{%
+                    endif %}{% endif %}
                 target:
                   entity_id:
                     - todo.mealie_supermarket
             enabled: true
+            else:
+              - action: notify.mobile_app_my_iphone
+                metadata: {}
+                data:
+                  data:
+                    tag: "{{ action_id }}"
+                    actions:
+                      - action: "{{ action_id }}"
+                        title: Name Product
+                        behavior: textInput
+                        icon: sfsymbols:barcode.viewfinder
+                  title: Unknown Product
+                  message: >-
+                    The barcode {{ trigger.event.data.barcode }} could not be
+                    identified.  Please provide a product name.
+              - wait_for_trigger:
+                  - trigger: event
+                    event_type: mobile_app_notification_action
+                    event_data:
+                      action: "{{ action_id }}"
+                    id: Name From iPhone
+                timeout:
+                  hours: 1
+                  minutes: 0
+                  seconds: 0
+                  milliseconds: 0
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {% if wait.trigger.event.data.reply_text | length > 0
+                      %}true{% endif %}
+                then:
+                  - action: todo.add_item
+                    metadata: {}
+                    data:
+                      item: "{{ wait.trigger.event.data.reply_text }}"
+                    target:
+                      entity_id: todo.mealie_supermarket
+                  - action: pyscript.barcode_cache_add
+                    metadata: {}
+                    data:
+                      barcode: "{{ trigger.event.data.barcode }}"
+                      title: "{{ wait.trigger.event.data.reply_text }}"
+                      type: food
+                    response_variable: add
+                else:
+                  - action: notify.mobile_app_my_iphone
+                    metadata: {}
+                    data:
+                      message: "\"clear_notification\""
+                      data:
+                        tag: "{{ action_id }}"
       - conditions:
           - condition: trigger
             id:
               - Generic Barcode
         sequence:
-          - action: esphome.barcode_scanner_product_identified
+          - action: esphome.barcode_scanner_kitchen_product_identified
             metadata: {}
             data:
               product: "{{ trigger.event.data.product }}"
@@ -60,4 +114,5 @@ actions:
               item: "{{ trigger.event.data.product }}"
             target:
               entity_id: todo.mealie_supermarket
-mode: single
+mode: parallel
+max: 10
