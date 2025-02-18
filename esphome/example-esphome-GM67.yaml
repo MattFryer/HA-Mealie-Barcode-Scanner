@@ -7,6 +7,10 @@
 esphome:
   name: barcode-scanner
   friendly_name: Barcode Scanner
+  on_boot: 
+    - text_sensor.template.publish: # On boot set the status to connecting
+        id: screen_mode
+        state: "connecting"
 
 esp32:
   board: esp32dev
@@ -21,15 +25,32 @@ api:
   encryption:
     key: "############################################"
   actions:
-    # For now, when a product is identified it just logs it to the debug stream but this can be adapted to write to product to a screen
+    # When an identified product is passed back from HA
     - action: product_identified
       variables:
         product: string
       then:
-        - logger.log: 
+        - text_sensor.template.publish: # Set the mode to result
+            id: screen_mode
+            state: "result"
+        - text_sensor.template.publish: # Set the last result to the returned value
+            id: last_result
+            state: !lambda 'return product.c_str();'
+        - script.execute: standby_timer # Start the timer to return to standby
+        - logger.log: # Log the returned result
             level: INFO
             format: "Returned Product: %s"
             args: [ 'product.c_str()' ] 
+  on_client_connected: # On successful connection to HA then set the status to standby
+    - text_sensor.template.publish:
+        id: screen_mode
+        state: "standby"
+    - script.stop: standby_timer # Stop the timer in case its running
+  on_client_disconnected: # If the connection to HA is lost then set the status to connecting
+    - text_sensor.template.publish: 
+        id: screen_mode
+        state: "connecting"
+    - script.stop: standby_timer # Stop the timer in case its running
   
 ota:
   - platform: esphome
@@ -50,11 +71,87 @@ captive_portal:
 # CONFIG THE DEVICE
 #######################################################################################################
 
+# I2C
+i2c:
+  sda: ${sda_pin}
+  scl: ${scl_pin}
+
+# Font
+font:
+  # Main text font
+  - file: "gfonts://Space+Mono"
+    id: space_mono
+    size: 20
+  # Material Design Icons
+  - file: "gfonts://Material+Symbols+Outlined"
+    id: icons_32
+    size: 32
+    glyphs: [
+      "\U0000e70b", #mdi:barcode
+      "\U0000e70c" # mdi:barcode-scanner
+      ] 
+
+# Display
+display:
+  - platform: ssd1306_i2c
+    id: "screen"
+    model: "SSD1306 128x32"
+    update_interval: 500ms
+    lambda: |-
+      if(id(screen_mode).state == "connecting") {
+        it.print(0, 4, id(space_mono), "Connecting");
+      } 
+      else if(id(screen_mode).state == "standby") {
+        it.print(0, 0, id(icons_32), "\U0000e70b");
+        it.print(40, 4, id(space_mono), "Scan");
+      } 
+      else if(id(screen_mode).state == "scanned") {
+        it.print(0, 4, id(space_mono), "Searching");
+      } 
+      else if(id(screen_mode).state == "result") {
+        it.print(0, 4, id(space_mono), id(last_result).state.c_str());
+      }
+      else {
+        it.print(0, 4, id(space_mono), "Unknow Error");
+      }
+      
+
+# Scripts
+script:
+  # 30 second timer used to reset the screen back to standby
+  - id: standby_timer 
+    mode: restart
+    then:
+      - delay: 30s
+      - text_sensor.template.publish:
+          id: screen_mode
+          state: "standby"
+
+# Text Sensor
+text_sensor:
+  # Current status of the scanning. Used for what to show on the screen and not exposed to HA
+  - platform: template
+    id: screen_mode
+    name: Screen Mode
+    #internal: true # not needed in HA but visible during development
+  # Provided for diagnostic purposes only. You should use the HA event "esphome.barcode_scan" triggered when a scan is performed
+  - platform: template
+    id: last_barcode
+    name: Last Barcode
+    icon: mdi:barcode
+    entity_category: DIAGNOSTIC
+    disabled_by_default: true
+  # Contains the last product passed back from HA. Not exposed to HA.
+  - platform: template
+    id: last_result
+    name: Last Result
+    internal: true
+
 # UART
 uart:
   # UART for the GM67 barcode scanner
   - id: scanner
-    baud_rate: 9600
+    baud_rate: ${gm67_baud}
     tx_pin: ${tx_pin}
     rx_pin: ${rx_pin}
     debug:
@@ -83,6 +180,7 @@ uart:
                   std::string str(bytes.begin(), bytes.end());
                   id(last_barcode).publish_state(str.c_str()); 
                   id(last_scan).trigger("barcode_scanned"); 
+                  id(screen_mode).publish_state("scanned");
               # Send a HA event with the scanned product barcode
               - homeassistant.event:
                   event: esphome.barcode_scan
@@ -92,6 +190,12 @@ uart:
                     scanned_barcode: !lambda |-
                         std::string str(bytes.begin(), bytes.end()); 
                         return str.c_str(); 
+              # Set the status to scanned
+              - text_sensor.template.publish: 
+                  id: screen_mode
+                  state: "scanned"
+              # Start the timer to return to standby just in case nothing comes back from HA
+              - script.execute: standby_timer 
         - if: # If a special QR code was scanned which contains text starting "GENERIC:"
             condition:
               lambda: |-
@@ -107,7 +211,8 @@ uart:
                   UARTDebug::log_string(direction, bytes);
                   std::string str(bytes.begin(), bytes.end());
                   id(last_barcode).publish_state(str.substr(8).c_str()); // Get rid of the "GENERIC:" from the front
-                  id(last_scan).trigger("barcode_scanned"); 
+                  id(last_scan).trigger("barcode_scanned");
+                  id(screen_mode).publish_state("scanned"); 
               # Send a HA event with the scanned product barcode
               - homeassistant.event:
                   event: esphome.generic_barcode_scan
@@ -117,16 +222,12 @@ uart:
                     scanned_product: !lambda |-
                         std::string str(bytes.begin(), bytes.end()); 
                         return str.substr(8).c_str(); 
-
-# Text Sensor
-text_sensor:
-  # # Provided for diagnostic purposes only. You should use the HA event "esphome.barcode_scan" triggered when a scan is performed
-  - platform: template
-    id: last_barcode
-    name: Last Barcode
-    icon: mdi:barcode
-    entity_category: DIAGNOSTIC
-    disabled_by_default: true
+              # Set the status to scanned
+              - text_sensor.template.publish: 
+                  id: screen_mode
+                  state: "scanned"
+              # Start the timer to return to standby just in case nothing comes back from HA
+              - script.execute: standby_timer 
 
 # Event
 event:

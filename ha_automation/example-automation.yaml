@@ -32,9 +32,8 @@ actions:
                 metadata: {}
                 data:
                   product: >-
-                    {% if product.result == 'success' %}{% if product.brand |
-                    length >0     %}{{product.brand}} {% endif
-                    %}{{product.title}} {% else %}Unknown{% endif %}
+                    {% if product.brand | length >0  %}{{product.brand}} {%
+                    endif %}{{product.title}}
               - action: todo.add_item
                 metadata: {}
                 data:
@@ -48,7 +47,11 @@ actions:
                     - todo.mealie_supermarket
             enabled: true
             else:
-              - action: notify.mobile_app_my_iphone
+              - action: esphome.barcode_scanner_kitchen_product_identified
+                metadata: {}
+                data:
+                  product: Unknown
+              - action: notify.mobile_app_matts_iphone
                 metadata: {}
                 data:
                   data:
@@ -79,6 +82,10 @@ actions:
                       {% if wait.trigger.event.data.reply_text | length > 0
                       %}true{% endif %}
                 then:
+                  - action: esphome.barcode_scanner_kitchen_product_identified
+                    metadata: {}
+                    data:
+                      product: "{{ wait.trigger.event.data.reply_text }}"
                   - action: todo.add_item
                     metadata: {}
                     data:
@@ -93,7 +100,7 @@ actions:
                       type: food
                     response_variable: add
                 else:
-                  - action: notify.mobile_app_my_iphone
+                  - action: notify.mobile_app_matts_iphone
                     metadata: {}
                     data:
                       message: "\"clear_notification\""
