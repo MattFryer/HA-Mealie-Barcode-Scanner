@@ -87,8 +87,8 @@ font:
     id: icons_32
     size: 32
     glyphs: [
-      "\U0000e70b", #mdi:barcode
-      "\U0000e70c" # mdi:barcode-scanner
+      "\U0000e70b", # mdi:barcode
+      "\U0000e70c"  # mdi:barcode-scanner
       ] 
 
 # Display
@@ -129,11 +129,11 @@ script:
 
 # Text Sensor
 text_sensor:
-  # Current status of the scanning. Used for what to show on the screen and not exposed to HA
+  # Current status of the device. Used for what to show on the screen and not exposed to HA
   - platform: template
     id: screen_mode
     name: Screen Mode
-    #internal: true # not needed in HA but visible during development
+    internal: true
   # Provided for diagnostic purposes only. You should use the HA event "esphome.barcode_scan" triggered when a scan is performed
   - platform: template
     id: last_barcode
@@ -141,7 +141,7 @@ text_sensor:
     icon: mdi:barcode
     entity_category: DIAGNOSTIC
     disabled_by_default: true
-  # Contains the last product passed back from HA. Not exposed to HA.
+  # Contains the last product passed back from HA. Used to display the result on the screen. Not exposed back to HA.
   - platform: template
     id: last_result
     name: Last Result
@@ -160,14 +160,15 @@ uart:
       after:
         delimiter: "\r"
       sequence:
-        - if: # If a 13 or 8 digit numeric barcode was canned
+        - if: # If a supported 14, 13, 12 or 8 digit numeric barcode was canned
             condition:
               lambda: |-
                 std::string str(bytes.begin(), bytes.end()); 
                 if ( 
                   (strlen(str.c_str()) == 14 and str.substr(0, 13).find_first_not_of("0123456789") == std::string::npos) or // is 13 digit EAN-13 barcode
                   (strlen(str.c_str()) == 13 and str.substr(0, 12).find_first_not_of("0123456789") == std::string::npos) or // is 12 digit UPC-A barcode
-                  (strlen(str.c_str()) == 9 and str.substr(0, 8).find_first_not_of("0123456789") == std::string::npos) // is 8 digit EAN-8 or UPC-E barcode
+                  (strlen(str.c_str()) == 9 and str.substr(0, 8).find_first_not_of("0123456789") == std::string::npos) or   // is 8 digit EAN-8 or UPC-E barcode
+                  (strlen(str.c_str()) == 15 and str.substr(0, 14).find_first_not_of("0123456789") == std::string::npos)    // is 14 digit ITF-14 barcode
                 ) { 
                   return true; 
                 } else {

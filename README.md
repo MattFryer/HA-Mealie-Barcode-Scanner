@@ -65,6 +65,7 @@ The scanner needs to support all barcode standards commonly in use. The 4 most c
 | EAN-8    | 8-digit        | Used across Europe. Used on smaller products unable to fit a larger barcode.    |
 | UPC-A    | 12-digit       | Mostly used in North America                                                    |
 | UPC-E    | 8-digit        | Used in North America. Used on smaller products unable to fit a larger barcode. |
+| ITF-14   | 14-digit       | Usually used supply chain packaging but can occasionally appear in retail also. |
 
 The GM67 barcode scanning head used for the below prototype supports all of the above standards and many more. The code must be able to handle these barcode lengths also.
 
@@ -426,6 +427,7 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [x] Update readme with info on QR codes to add an item to the shopping list (e.g. "GENERIC:Milk")
 - [ ] Consider splitting the readme into separate Wiki pages instead.
 - [x] Add info on supported barcode formats and numeric lengths (EAN-13, EAN-8, UPC-A and UPC-E).
+- [ ] Update documentation for screen.
 
 ### Pyscript and automation
 - [x] Switch to using openfoodfacts.org for primary lookup instead as seems better populated.
@@ -440,9 +442,9 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 
 ### Hardware
 - [x] Investigate sending serial commands to the GM67 to allow for options in the HA device to configure the scanning mode, to turn off the scanner, etc. 
-- [ ] A screen on the scanner for feedback of if the scanned code was found and buttons to change which shopping list you want the product added to.
+- [x] A screen on the scanner for feedback of if the scanned code was found and buttons to change which shopping list you want the product added to.
 - [ ] 3D printable case to house the parts under a kitchen cupboard with the barcode scanner facing down. Straight down or angled?
 - [ ] Better detecting of a product in front of the scanner using a time of flight sensor if the inbuilt sensing proves to be inaccurate.
 - [ ] Consider a custom PCB to make a more productionised product. Or an alternative hand-held version. Can use the GM65-S or GM77-S instead.
 - [x] Add support for 12 digit UPC-A barcodes also.
-- [ ] Add support for 14 digit ITF-14 barcodes.
+- [x] Add support for 14 digit ITF-14 barcodes.
