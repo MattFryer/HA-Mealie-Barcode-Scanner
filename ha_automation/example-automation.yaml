@@ -51,7 +51,7 @@ actions:
                 metadata: {}
                 data:
                   product: Unknown
-              - action: notify.mobile_app_matts_iphone
+              - action: notify.mobile_app_my_iphone
                 metadata: {}
                 data:
                   data:
@@ -100,7 +100,7 @@ actions:
                       type: food
                     response_variable: add
                 else:
-                  - action: notify.mobile_app_matts_iphone
+                  - action: notify.mobile_app_my_iphone
                     metadata: {}
                     data:
                       message: "\"clear_notification\""

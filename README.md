@@ -59,13 +59,13 @@ Once a barcode is scanned, it will need to be converted to a product name and th
 ### Supported Barcodes
 The scanner needs to support all barcode standards commonly in use. The 4 most common standards are:
 
-| Standard | Barcode Length | Use                                                                             |
-|----------|----------------|---------------------------------------------------------------------------------|
-| EAN-13   | 13-digit       | Most commonly used across Europe.                                               |
-| EAN-8    | 8-digit        | Used across Europe. Used on smaller products unable to fit a larger barcode.    |
-| UPC-A    | 12-digit       | Mostly used in North America                                                    |
-| UPC-E    | 8-digit        | Used in North America. Used on smaller products unable to fit a larger barcode. |
-| ITF-14   | 14-digit       | Usually used supply chain packaging but can occasionally appear in retail also. |
+| Standard | Barcode Length | Use                                                                                          |
+|----------|----------------|----------------------------------------------------------------------------------------------|
+| EAN-13   | 13-digit       | Most commonly used across Europe.                                                            |
+| EAN-8    | 8-digit        | Used across Europe. Used on smaller products unable to fit a larger barcode.                 |
+| UPC-A    | 12-digit       | Mostly used in North America                                                                 |
+| UPC-E    | 8-digit        | Used in North America. Used on smaller products unable to fit a larger barcode.              |
+| ITF-14   | 14-digit       | Usually used on supply chain packaging but can occasionally appear in retail packaging also. |
 
 The GM67 barcode scanning head used for the below prototype supports all of the above standards and many more. The code must be able to handle these barcode lengths also.
 
@@ -427,7 +427,7 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [x] Update readme with info on QR codes to add an item to the shopping list (e.g. "GENERIC:Milk")
 - [ ] Consider splitting the readme into separate Wiki pages instead.
 - [x] Add info on supported barcode formats and numeric lengths (EAN-13, EAN-8, UPC-A and UPC-E).
-- [ ] Update documentation for screen.
+- [ ] Update documentation for having added the screen.
 
 ### Pyscript and automation
 - [x] Switch to using openfoodfacts.org for primary lookup instead as seems better populated.
@@ -439,6 +439,8 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [x] Option to have special QR codes which when scanned add some text in the QR code to the list rather than doing a barcode lookup (e.g. Add "Milk" to the shopping list). Possible to trigger a different HA event if the scanned code starts with a specific string.
 - [x] The APIs some times return a success but have no name for the product. The code needs to handle these as unknown.
 - [ ] Switch caching to use SQLite instead of CSV for handling large numbers of barcodes.
+- [ ] Make the barcode_cache_add action check if the product is in the cache first and if it is update the existing entry rather than adding duplicates.
+- [ ] Add an example automation and documentation for passing the returned product to an LLM to cleans it and create a simpler generic description as described
 
 ### Hardware
 - [x] Investigate sending serial commands to the GM67 to allow for options in the HA device to configure the scanning mode, to turn off the scanner, etc. 
