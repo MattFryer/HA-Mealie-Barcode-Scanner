@@ -33,6 +33,8 @@ If you just want to show your appreciation, you can sponsor the project or send 
 
 ## Table of Contents
 - [The Idea](#the-idea)
+  - [Supported Barcodes](#supported-barcodes)
+  - [Generic Product QR Codes](#generic-product-qr-odes) 
 - [The Solution](#the-solution)
   - [The Hardware](#the-hardware)
     - [Parts](#parts)
@@ -220,7 +222,13 @@ Once installed, you need to add the integration under the integrations section o
 > Make sure to check the option for "Allow All Imports?" when adding the Pyscript integration. If you do not, our python script will not be able to load the needed python modules. Don't worry if you missed it or already have Pyscripts installed, you can check and set this option by going to the Pyscript integration page and clicking on "CONFIGURE".
 
 #### Add the python script under Pyscripts
-Pyscript can have a bit of a learning curve to set up and the documentation isn't be best for beginners with no python development experience. Don't worry though, if this is the first time you are using Pyscript in your HA instance, you can simply copy the "pyscript" folder and all of its contents and subfolders from this repository to your Home Assistant config folder. 
+Pyscript can have a bit of a learning curve to set up and the documentation isn't be best for beginners with no python development experience. Don't worry though, if this is the first time you are using Pyscript in your HA instance, you can simply copy the "pyscript" folder and all of its contents and subfolders from this repository to your Home Assistant config folder. You also need to include the `pyscript/config.yaml` file into your Home Assistant configuration.yaml file. The below should be added to your Home Assistand configuration.yaml file:
+```yaml
+homeassistant:
+  packages:
+    pyscript: !include pyscript/config.yaml
+```
+You will find that you will already have the first line in your configuration.yaml file and you will need to add the others below it.
 
 If you already had Pyscript installed and running other python scripts, you should hopefully already understand the basics of how Pyscript is configured. You will need to copy the "pyscript/apps/barcode_lookup" folder and its contents from this repository under your existing "pyscript/apps" folder (or create one) in your Home Assistant config folder. You will also need to amend your "pyscript/config.yaml" file to include the definition and settings for this new Pyscript app. You can copy them from the ["pyscript/config.yaml"](pyscript/config.yaml) file in this repository.
 
@@ -439,8 +447,12 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [x] Option to have special QR codes which when scanned add some text in the QR code to the list rather than doing a barcode lookup (e.g. Add "Milk" to the shopping list). Possible to trigger a different HA event if the scanned code starts with a specific string.
 - [x] The APIs some times return a success but have no name for the product. The code needs to handle these as unknown.
 - [ ] Switch caching to use SQLite instead of CSV for handling large numbers of barcodes.
+<<<<<<< HEAD
 - [ ] Make the barcode_cache_add action check if the product is in the cache first and if it is update the existing entry rather than adding duplicates.
 - [ ] Add an example automation and documentation for passing the returned product to an LLM to cleans it and create a simpler generic description as described
+=======
+- [ ] Improve the returned product text by passing it to ChatGPT/HA Conversation agent before adding it to the shopping list (see [this discussion](https://github.com/MattFryer/HA-Mealie-Barcode-Scanner/discussions/5)).
+>>>>>>> c6f7db2e1805ac49229b30685d1ab44b5f00eced
 
 ### Hardware
 - [x] Investigate sending serial commands to the GM67 to allow for options in the HA device to configure the scanning mode, to turn off the scanner, etc. 
@@ -449,4 +461,8 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [ ] Better detecting of a product in front of the scanner using a time of flight sensor if the inbuilt sensing proves to be inaccurate.
 - [ ] Consider a custom PCB to make a more productionised product. Or an alternative hand-held version. Can use the GM65-S or GM77-S instead.
 - [x] Add support for 12 digit UPC-A barcodes also.
+<<<<<<< HEAD
 - [x] Add support for 14 digit ITF-14 barcodes.
+=======
+- [ ] Add support for 14 digit ITF-14 barcodes.
+>>>>>>> c6f7db2e1805ac49229b30685d1ab44b5f00eced
