@@ -457,8 +457,4 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [ ] Better detecting of a product in front of the scanner using a time of flight sensor if the inbuilt sensing proves to be inaccurate.
 - [ ] Consider a custom PCB to make a more productionised product. Or an alternative hand-held version. Can use the GM65-S or GM77-S instead.
 - [x] Add support for 12 digit UPC-A barcodes also.
-<<<<<<< HEAD
 - [x] Add support for 14 digit ITF-14 barcodes.
-=======
-- [ ] Add support for 14 digit ITF-14 barcodes.
->>>>>>> c6f7db2e1805ac49229b30685d1ab44b5f00eced
