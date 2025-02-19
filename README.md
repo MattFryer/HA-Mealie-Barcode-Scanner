@@ -447,12 +447,8 @@ This is just a brain dump of ideas for improving the proof of concept or to inve
 - [x] Option to have special QR codes which when scanned add some text in the QR code to the list rather than doing a barcode lookup (e.g. Add "Milk" to the shopping list). Possible to trigger a different HA event if the scanned code starts with a specific string.
 - [x] The APIs some times return a success but have no name for the product. The code needs to handle these as unknown.
 - [ ] Switch caching to use SQLite instead of CSV for handling large numbers of barcodes.
-<<<<<<< HEAD
 - [ ] Make the barcode_cache_add action check if the product is in the cache first and if it is update the existing entry rather than adding duplicates.
-- [ ] Add an example automation and documentation for passing the returned product to an LLM to cleans it and create a simpler generic description as described
-=======
 - [ ] Improve the returned product text by passing it to ChatGPT/HA Conversation agent before adding it to the shopping list (see [this discussion](https://github.com/MattFryer/HA-Mealie-Barcode-Scanner/discussions/5)).
->>>>>>> c6f7db2e1805ac49229b30685d1ab44b5f00eced
 
 ### Hardware
 - [x] Investigate sending serial commands to the GM67 to allow for options in the HA device to configure the scanning mode, to turn off the scanner, etc. 
