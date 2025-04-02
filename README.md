@@ -133,7 +133,7 @@ So far, the GM67 has been very fast, accurate and reliable during testing.
 > The GM67 is camera based and as such, seems to be good at reading codes from screens also. You can therefore open this page on your phone to be able to scan the above QR code easily. 
 
 #### ESPHome YAML
-An example ESPHome YAML configuration file can be found in this repository under [/esphome/example-esphome-gm67.yaml](esphome/example-esphome-gm67.yaml). This YAML file is an example only and unless you have the exact same hardware and wiring as in my prototype, you will likely need to amend it to get it working for you. 
+An example ESPHome YAML configuration file can be found in this repository under [/esphome/example-esphome-GM67.yaml](esphome/example-esphome-GM67.yaml). This YAML file is an example only and unless you have the exact same hardware and wiring as in my prototype, you will likely need to amend it to get it working for you. 
 
 > [!TIP]
 > Some of the sensors created in the example are disabled in HA by default but can be enabled to help with debugging if required. 
