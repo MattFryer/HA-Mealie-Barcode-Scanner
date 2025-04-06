@@ -10,7 +10,7 @@
 ####################################################################################################
 import requests
 import json
-import csv
+import sqlite3
 
 ####################################################################################################
 # BARCODE LOOKUP
@@ -30,14 +30,14 @@ fields:
     """
     product = {} # Python dictionary to return data to Home Assistant
     
-    # If the cache_csv is set in the config the check it first
-    if pyscript.app_config["cache_csv"] == None:
+    # If the cache_db is set in the config the check it first
+    if pyscript.app_config["cache_db"] == None:
         log.info(f"Cache not configured in the config. Skipping searching the cache.")
     else:
         log.info(f"Looking for barcode {barcode} in the cache.")
 
         # Lookup the barcode in the cache file
-        cache = task.executor(cache_lookup, barcode, pyscript.app_config["cache_csv"])
+        cache = task.executor(cache_lookup, barcode, pyscript.app_config["cache_db"])
         
         if cache['result'] == 'success': # If it is found in the cache then return it from the cache
             product['result'] = 'success'
@@ -80,9 +80,9 @@ fields:
             log.info(f"Barcode {barcode} identified as {product['brand']} {product['title']} in the OpenFoodFacts.org API.")
             
             # Add it to the cache if configured
-            if not pyscript.app_config["cache_csv"] == None:
+            if not pyscript.app_config["cache_db"] == None:
                 log.info(f"Adding {barcode} identified as {product['brand']} {product['title']} to the cache.")
-                task.executor(cache_add, product, pyscript.app_config["cache_csv"])
+                task.executor(cache_add, product, pyscript.app_config["cache_db"])
             else:
                 log.info(f"Cache not configured. Skipping adding {barcode} to the cache.")
 
@@ -120,9 +120,9 @@ fields:
             log.info(f"Barcode {barcode} identified as {product['brand']} {product['title']} in the UPCDatabase.org API.")
             
             # Add it to the cache if configured
-            if not pyscript.app_config["cache_csv"] == None:
+            if not pyscript.app_config["cache_db"] == None:
                 log.info(f"Adding {barcode} identified as {product['brand']} {product['title']} to the cache.")
-                task.executor(cache_add, product, pyscript.app_config["cache_csv"])
+                task.executor(cache_add, product, pyscript.app_config["cache_db"])
             else:
                 log.info(f"Cache not configured. Skipping adding {barcode} to the cache.")
 
@@ -142,9 +142,38 @@ fields:
     return product
 
 ####################################################################################################
+# INITIALIZE SQLITE DATABASE
+####################################################################################################
+@pyscript_compile
+def init_db(db_file):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        
+        # Create table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS products (
+                barcode TEXT PRIMARY KEY,
+                brand TEXT,
+                product TEXT,
+                type TEXT,
+                qty TEXT
+            )
+        ''')
+        
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+####################################################################################################
 # ADD PRODUCT TO THE CACHE
 ####################################################################################################
-# We need the function to be compiled to access the open() function but it then 
+# We need the function to be compiled to access the SQLite functions but it then 
 # can't access the Pyscript app config. So we create a wrapper function which 
 # can be called from Home Assistant which then calls the compiled function.
 @service(supports_response="only") # Tells Pyscript to make this function available as a HA action
@@ -195,61 +224,80 @@ fields:
     product["type"] = type
     product["quantity"] = quantity
 
-    # Call the compiled function that can access the file with open()
-    result = task.executor(cache_add, product, pyscript.app_config["cache_csv"])
+    # Initialize the database if needed
+    task.executor(init_db, pyscript.app_config["cache_db"])
+    
+    # Call the compiled function that can access the SQLite database
+    result = task.executor(cache_add, product, pyscript.app_config["cache_db"])
     return {"result": "success"} if result == True else {"result": "failed"}
 
 @pyscript_compile # Tells Pyscript to compile the function
-def cache_add(product, file):
-
-    # Sort the passed product object into a row ready for the csv to make sure it is in the correct order etc
-    row = [product['barcode'], product['brand'], product['title'], product['type'], product['quantity']]
-
-    # Open the cache csv in append mode and create a file object
-    with open(file, 'a') as cache_f_obj:
-        cache_w_obj = csv.writer(cache_f_obj) # Pass the file object to csv.writer() to get a writer object
-        cache_w_obj.writerow(row) # Add the row to the writer object
-        cache_f_obj.close # Close the file object
-
+def cache_add(product, db_file):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        
+        # Insert or replace the product in the database
+        cursor.execute('''
+            INSERT OR REPLACE INTO products (barcode, brand, product, type, qty)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (product['barcode'], product['brand'], product['title'], product['type'], product['quantity']))
+        
+        conn.commit()
         return True
-    return False
+    except sqlite3.Error:
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 ####################################################################################################
 # CACHE LOOKUP
 ####################################################################################################
 @pyscript_compile
-def cache_lookup(barcode, file):
+def cache_lookup(barcode, db_file):
     product = {} # Dictionary to pass back
-
+    conn = None
+    
     try:
-        with open(file, 'r') as cache_f_obj: # Open the cache file in read mode
-            for row in csv.reader(cache_f_obj): # Loop through the rows
-                if row[0] == str(barcode): # If the row matches the barcode
-                    # Fill out the dictionary to returm
-                    product['result'] = 'success'
-                    product['barcode'] = barcode
-                    product['brand'] = row[1]
-                    product['product'] = row[2]
-                    product['type'] = row[3]
-                    product['qty'] = row[4]
-                    cache_f_obj.close # Close the file
-                    return product
-
-            # If the barcode isn't found in the file return unknown
+        # Initialize the database if needed
+        init_db(db_file)
+        
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        
+        # Look up the barcode in the database
+        cursor.execute("SELECT * FROM products WHERE barcode = ?", (str(barcode),))
+        row = cursor.fetchone()
+        
+        if row:
+            # Fill out the dictionary to return
+            product['result'] = 'success'
+            product['barcode'] = barcode
+            product['brand'] = row[1]
+            product['product'] = row[2]
+            product['type'] = row[3]
+            product['qty'] = row[4]
+            return product
+        else:
+            # If the barcode isn't found in the database return unknown
             product['result'] = 'unknown'
             product['barcode'] = barcode
-            cache_f_obj.close # Close the file
             return product
             
-    except requests.exceptions.RequestException as e: # If an error occured return it
+    except sqlite3.Error as e:
         product['result'] = 'error'
-        product['error'] = e
+        product['error'] = str(e)
         return product
+    finally:
+        if conn:
+            conn.close()
 
 ####################################################################################################
 # CLEAR THE CACHE
 ####################################################################################################
-# We need the function to be compiled to access the open() function but it then 
+# We need the function to be compiled to access the SQLite functions but it then 
 # can't access the Pyscript app config. So we create a wrapper function which 
 # can be called from Home Assistant which then calls the compiled function.
 @service(supports_response="only") # Tells Pyscript to make this function available as a HA action
@@ -258,27 +306,32 @@ def barcode_cache_clear(return_response=True):
 name: Barcode Cache Clear
 description: WARNING THIS CAN'T BE UNDONE! Clears the local cache of barcodes that have either been returned from wesites or manually entered.
     """
-    # Call the compiled function that can access the file with open()
-    result = task.executor(cache_clear, pyscript.app_config["cache_csv"])
+    # Call the compiled function that can access the database
+    result = task.executor(cache_clear, pyscript.app_config["cache_db"])
     return result
 
 @pyscript_compile
-def cache_clear(file):
+def cache_clear(db_file):
     result = {} # Dictionary to pass back
-
-    # Clear the csv file
-    with open(file, 'w+') as cache_f_obj: # w+ opens the file in write mode but truncates the file
-        # Recreate the header row
-        header_row = ['barcode', 'brand', 'product', 'type', 'qty']
-        # Pass the file object to csv.writer() to get a writer object
-        cache_w_obj = csv.writer(cache_f_obj)
-        # Add the row to the writer object
-        cache_w_obj.writerow(header_row)
-        # Close the file
-        cache_f_obj.close()
-
+    conn = None
+    
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        
+        # Delete all rows from the products table
+        cursor.execute("DELETE FROM products")
+        conn.commit()
+        
         result['result'] = 'success'
         return result
+    except sqlite3.Error as e:
+        result['result'] = 'error'
+        result['error'] = str(e)
+        return result
+    finally:
+        if conn:
+            conn.close()
 
 ####################################################################################################
 # OPEN FOOD FACTS
